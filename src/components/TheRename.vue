@@ -1,68 +1,48 @@
 <script setup lang="ts">
-import BaseFileList from "./BaseFileList.vue";
 import { invoke } from "@tauri-apps/api/tauri";
-import { open } from "@tauri-apps/api/dialog";
 import { emit, listen } from "@tauri-apps/api/event";
-import { readDir } from "@tauri-apps/api/fs";
 import { ref } from "vue";
+import BaseDrag from "../components/BaseDrag.vue";
 
-// With the Tauri global script, enabled when `tauri.conf.json > build > withGlobalTauri` is set to true:
-// const invoke = window.__TAURI__.invoke
-
-// Invoke the command
-
-const folderPath = ref("");
-const filePath = ref([]);
 const separator = ref("#");
-const isDir = ref(false);
+const isDragOver = ref(false);
+const selectedFiles = ref([]);
 
-const selectFolder = async () => {
-    const result = (await open({ directory: true })) as string;
-    console.log(result);
-    if (result) {
-        console.log("####");
-        console.log(readDir);
-        invoke("rename_folder", { folder: result, separator: "#" });
-    }
-};
-
-const selectFiles = async () => {
-    const result = await open({ directory: false, multiple: true });
-    console.log(result);
-    if (result) {
-        console.log("xxxx");
-        invoke("rename_files", { files: result, separator: "#" });
-    }
-};
-
-listen("folder-selected", (event) => {
-    console.log(event);
-    folderPath.value = event.payload.folder;
-    isDir.value = true;
+listen("files-selected", (event) => {
+    selectedFiles.value = [event.payload.files];
 });
 
 const rename = () => {
-    if (isDir.value) {
-        invoke("rename_folder", { folder: folderPath.value, separator: separator.value });
-    }
+    invoke("rename", { files: selectedFiles.value, separator: separator.value });
 };
+
+listen("tauri://file-drop-hover", (event) => {
+    isDragOver.value = true;
+});
+
+listen("tauri://file-drop", (event) => {
+    console.log(event);
+    console.log(event.payload);
+    isDragOver.value = false;
+    selectedFiles.value = event.payload;
+});
 </script>
 
 <template>
-    <div>
-        <div class="flex justify-between px-4 py-5">
+    <div class="px-4 py-5 flex flex-col h-full">
+        <div class="flex justify-between">
             <div class="flex">
-                <div class="button" @click="selectFolder">打开文件夹</div>
-                <div class="button ml-2" @click="selectFiles">打开文件</div>
-                <input class="border border-gray-300 outline-none px-2 ml-2" type="text" placeholder="请输入混淆文字" :value="separator" />
+                <input class="border border-gray-300 outline-none px-2" type="text" placeholder="请输入混淆文字" :value="separator" />
             </div>
             <div class="flex">
-                <div class="button">还原</div>
+                <div class="button" @click="log">还原</div>
                 <div class="button ml-2" @click="rename">混淆</div>
             </div>
         </div>
-        <BaseFileList />
-        <h1>{{ folderPath }}</h1>
+        <ul class="text-sm my-2 list-inside list-square">
+            <li v-for="item in selectedFiles">{{item}}</li>
+        </ul>
+        <base-drag :is-drag-over="isDragOver" class="flex-grow" />
     </div>
 </template>
 

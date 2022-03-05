@@ -1,13 +1,26 @@
 use std::fs::{self, File};
 use std::path::Path;
 use tauri::api::dialog::FileDialogBuilder;
-use tauri::{App, WindowEvent};
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 
 // #![cfg_attr(
 //     all(not(debug_assertions), target_os = "windows"),
 //     windows_subsystem = "windows"
 // )]
+
+#[tauri::command]
+fn rename(files: Vec<&str>, separator: &str) {
+    println!("rename{:?}", files);
+    for file in files {
+        let path = Path::new(file);
+        let md = path.metadata().unwrap();
+        if md.is_dir() {
+            rename_folder(file, separator);
+        } else {
+            rename_files(vec![file], separator);
+        }
+    }
+}
 
 #[tauri::command]
 fn rename_folder(folder: &str, separator: &str) {
@@ -51,12 +64,13 @@ fn rename_files(files: Vec<&str>, separator: &str) {
     for file in files {
         let path = Path::new(file);
         let parent_folder = path.parent().unwrap();
-        let file_name = path.file_name().unwrap().to_str().unwrap();
+        let file_name = path.file_stem().unwrap().to_str().unwrap();
+        let file_ext = path.extension().unwrap().to_str().unwrap();
         let chars: Vec<String> = String::from(file_name)
             .chars()
             .map(|x| x.to_string())
             .collect();
-        let new_file_name = chars.join(separator);
+        let new_file_name = chars.join(separator) + "." + file_ext;
         let new_path = parent_folder.join(new_file_name);
         let result = fs::rename(file, new_path);
         let result = match result {
@@ -70,27 +84,27 @@ fn rename_files(files: Vec<&str>, separator: &str) {
 }
 
 #[derive(Clone, serde::Serialize)]
-struct Payload {
-    folder: String,
+struct Payload<'a> {
+    files: Vec<&'a str>,
 }
 
 fn main() {
-    // let menu = vec![];
     let quit = CustomMenuItem::new("open-folder".to_string(), "打开文件夹");
     let close = CustomMenuItem::new("open-files".to_string(), "打开文件");
     let submenu = Submenu::new("文件", Menu::new().add_item(quit).add_item(close));
     let menu = Menu::new().add_submenu(submenu);
-    // let app = tauri::Builder::default();
     tauri::Builder::default()
         .menu(menu)
-        // .on_menu_event(handler)
         .on_menu_event(|event| match event.menu_item_id() {
             "open-folder" => FileDialogBuilder::new().pick_folder(move |folder_path| {
                 println!("open folder: {:?}", folder_path);
                 let folder = folder_path.unwrap().to_str().unwrap().to_string();
-                let _result = event
-                    .window()
-                    .emit("folder-selected", Payload { folder: folder });
+                let _result = event.window().emit(
+                    "files-selected",
+                    Payload {
+                        files: vec![&folder],
+                    },
+                );
             }),
             "open-files" => {
                 // event.window().close().unwrap();
@@ -100,7 +114,11 @@ fn main() {
             }
             _ => {}
         })
-        .invoke_handler(tauri::generate_handler![rename_folder, rename_files])
+        .invoke_handler(tauri::generate_handler![
+            rename,
+            rename_folder,
+            rename_files
+        ])
         .run(tauri::generate_context!())
         .expect("failed to run app")
 }

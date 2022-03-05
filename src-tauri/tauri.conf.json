@@ -1,6 +1,6 @@
 {
     "package": {
-        "productName": "rename-helper",
+        "productName": "115文件重命名",
         "version": "0.1.0"
     },
     "build": {
@@ -51,9 +51,9 @@
         },
         "windows": [
             {
-                "title": "rename-helper",
-                "width": 800,
-                "height": 600,
+                "title": "115文件重命名",
+                "width": 600,
+                "height": 300,
                 "resizable": true,
                 "fullscreen": false
             }
