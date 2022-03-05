@@ -4,18 +4,24 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { open } from "@tauri-apps/api/dialog";
 import { emit, listen } from "@tauri-apps/api/event";
 import { readDir } from "@tauri-apps/api/fs";
+import { ref } from "vue";
 
 // With the Tauri global script, enabled when `tauri.conf.json > build > withGlobalTauri` is set to true:
 // const invoke = window.__TAURI__.invoke
 
 // Invoke the command
 
+const folderPath = ref("");
+const filePath = ref([]);
+const separator = ref("#");
+const isDir = ref(false);
+
 const selectFolder = async () => {
     const result = (await open({ directory: true })) as string;
     console.log(result);
     if (result) {
         console.log("####");
-        console.log(readDir)
+        console.log(readDir);
         invoke("rename_folder", { folder: result, separator: "#" });
     }
 };
@@ -28,6 +34,18 @@ const selectFiles = async () => {
         invoke("rename_files", { files: result, separator: "#" });
     }
 };
+
+listen("folder-selected", (event) => {
+    console.log(event);
+    folderPath.value = event.payload.folder;
+    isDir.value = true;
+});
+
+const rename = () => {
+    if (isDir.value) {
+        invoke("rename_folder", { folder: folderPath.value, separator: separator.value });
+    }
+};
 </script>
 
 <template>
@@ -36,14 +54,15 @@ const selectFiles = async () => {
             <div class="flex">
                 <div class="button" @click="selectFolder">打开文件夹</div>
                 <div class="button ml-2" @click="selectFiles">打开文件</div>
-                <input class="border border-gray-300 outline-none px-2 ml-2" type="text" placeholder="请输入混淆文字" />
+                <input class="border border-gray-300 outline-none px-2 ml-2" type="text" placeholder="请输入混淆文字" :value="separator" />
             </div>
             <div class="flex">
                 <div class="button">还原</div>
-                <div class="button ml-2">混淆</div>
+                <div class="button ml-2" @click="rename">混淆</div>
             </div>
         </div>
         <BaseFileList />
+        <h1>{{ folderPath }}</h1>
     </div>
 </template>
 
