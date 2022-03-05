@@ -3,14 +3,25 @@ use std::path::Path;
 use tauri::api::dialog::FileDialogBuilder;
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 
+use tauri::{Manager, Window};
+
 // #![cfg_attr(
 //     all(not(debug_assertions), target_os = "windows"),
 //     windows_subsystem = "windows"
 // )]
 
+#[derive(Clone, serde::Serialize)]
+struct Payload<'a> {
+    files: Vec<&'a str>,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct Message<'a> {
+    message: &'a str,
+}
+
 #[tauri::command]
-fn rename(files: Vec<&str>, separator: &str) {
-    println!("rename{:?}", files);
+fn rename(files: Vec<&str>, separator: &str, window: Window) {
     for file in files {
         let path = Path::new(file);
         let md = path.metadata().unwrap();
@@ -20,9 +31,9 @@ fn rename(files: Vec<&str>, separator: &str) {
             rename_files(vec![file], separator);
         }
     }
+    let _result = window.emit("done", Message { message: "重命名完成！" });
 }
 
-#[tauri::command]
 fn rename_folder(folder: &str, separator: &str) {
     let paths = fs::read_dir(folder).unwrap();
     for path in paths {
@@ -57,10 +68,7 @@ fn rename_folder(folder: &str, separator: &str) {
     };
 }
 
-#[tauri::command]
 fn rename_files(files: Vec<&str>, separator: &str) {
-    println!("{}", separator);
-    println!("{:?}", files);
     for file in files {
         let path = Path::new(file);
         let parent_folder = path.parent().unwrap();
@@ -79,13 +87,87 @@ fn rename_files(files: Vec<&str>, separator: &str) {
                 panic!("Problem opening the file: {:?}", error)
             }
         };
-        // println!("{}", item);
     }
 }
 
-#[derive(Clone, serde::Serialize)]
-struct Payload<'a> {
-    files: Vec<&'a str>,
+#[tauri::command]
+fn restore(files: Vec<&str>, separator: &str, window: Window) {
+    for file in files {
+        let path = Path::new(file);
+        let md = path.metadata().unwrap();
+        if md.is_dir() {
+            restore_folder(file, separator);
+        } else {
+            restore_files(vec![file], separator);
+        }
+    }
+    let _result = window.emit("done", Message { message: "还原完成！" });
+}
+
+fn restore_folder(folder: &str, separator: &str) {
+    let paths = fs::read_dir(folder).unwrap();
+    for path in paths {
+        let md = path.as_ref().unwrap().metadata().unwrap();
+        if md.is_dir() {
+            restore_folder(path.as_ref().unwrap().path().to_str().unwrap(), separator);
+        } else {
+            restore_files(
+                vec![path.as_ref().unwrap().path().to_str().unwrap()],
+                separator,
+            );
+        }
+    }
+    let mut ancestors = Path::new(folder).ancestors();
+    ancestors.next();
+    let parent_folder = ancestors.next().unwrap();
+    let file_name = Path::new(folder)
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let chars: Vec<String> = file_name
+        .chars()
+        .map(|x| x.to_string())
+        .filter(|x| x != separator)
+        .collect();
+    let new_file_name = chars.join("");
+    let new_path = parent_folder.join(new_file_name);
+    let result = fs::rename(folder, new_path);
+    let result = match result {
+        Ok(file) => file,
+        Err(error) => {
+            panic!("Problem opening the file: {:?}", error)
+        }
+    };
+}
+
+fn restore_files(files: Vec<&str>, separator: &str) {
+    for file in files {
+        let path = Path::new(file);
+        let parent_folder = path.parent().unwrap();
+        let file_name = path.file_stem().unwrap().to_str().unwrap();
+        let file_ext = path.extension().unwrap().to_str().unwrap();
+        let chars: Vec<String> = String::from(file_name)
+            .chars()
+            .map(|x| x.to_string())
+            .filter(|x| x != separator)
+            .collect();
+        let new_file_name = chars.join("") + "." + file_ext;
+        let new_path = parent_folder.join(new_file_name);
+        let result = fs::rename(file, new_path);
+        let result = match result {
+            Ok(file) => file,
+            Err(error) => {
+                panic!("Problem opening the file: {:?}", error)
+            }
+        };
+    }
+}
+
+#[tauri::command]
+fn send_message(window: Window, message: &str) {
+    window.emit("done", Message { message }).unwrap();
 }
 
 fn main() {
@@ -114,11 +196,7 @@ fn main() {
             }
             _ => {}
         })
-        .invoke_handler(tauri::generate_handler![
-            rename,
-            rename_folder,
-            rename_files
-        ])
+        .invoke_handler(tauri::generate_handler![rename, restore,])
         .run(tauri::generate_context!())
         .expect("failed to run app")
 }

@@ -9,14 +9,24 @@ console.log("loading...");
 const separator = ref("❤");
 const isDragOver = ref(false);
 const selectedFiles = ref([]);
+const message = ref("");
+
+const restore = () => {
+    invoke("restore", { files: selectedFiles.value, separator: separator.value });
+};
+
+const rename = () => {
+    invoke("rename", { files: selectedFiles.value, separator: separator.value });
+};
 
 listen("files-selected", (event) => {
     selectedFiles.value = [event.payload.files];
 });
 
-const rename = () => {
-    invoke("rename", { files: selectedFiles.value, separator: separator.value });
-};
+listen("done", (event) => {
+    // selectedFiles.value = [event.payload.files];
+    message.value = event.payload.message;
+});
 
 listen("tauri://file-drop-hover", (event) => {
     isDragOver.value = true;
@@ -25,6 +35,7 @@ listen("tauri://file-drop-hover", (event) => {
 listen("tauri://file-drop", (event) => {
     console.log(event);
     console.log(event.payload);
+    message.value = "";
     isDragOver.value = false;
     selectedFiles.value = event.payload;
 });
@@ -37,11 +48,12 @@ listen("tauri://file-drop", (event) => {
                 <input class="border border-gray-300 outline-none px-2" type="text" placeholder="请输入混淆文字" v-model="separator" />
             </div>
             <div class="flex">
-                <div class="button" @click="log">还原</div>
+                <div class="button" @click="restore">还原</div>
                 <div class="button ml-2" @click="rename">混淆</div>
             </div>
         </div>
-        <ul class="text-sm my-2 list-inside list-square">
+        <p v-if="message">{{ message }}</p>
+        <ul v-else class="text-sm my-2 list-inside list-square">
             <li v-for="item in selectedFiles">{{ item }}</li>
         </ul>
         <base-drag :is-drag-over="isDragOver" class="flex-grow" />
