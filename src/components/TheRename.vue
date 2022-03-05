@@ -4,7 +4,9 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { ref } from "vue";
 import BaseDrag from "../components/BaseDrag.vue";
 
-const separator = ref("#");
+console.log("loading...");
+
+const separator = ref("❤");
 const isDragOver = ref(false);
 const selectedFiles = ref([]);
 
@@ -32,7 +34,7 @@ listen("tauri://file-drop", (event) => {
     <div class="px-4 py-5 flex flex-col h-full">
         <div class="flex justify-between">
             <div class="flex">
-                <input class="border border-gray-300 outline-none px-2" type="text" placeholder="请输入混淆文字" :value="separator" />
+                <input class="border border-gray-300 outline-none px-2" type="text" placeholder="请输入混淆文字" v-model="separator" />
             </div>
             <div class="flex">
                 <div class="button" @click="log">还原</div>
@@ -40,7 +42,7 @@ listen("tauri://file-drop", (event) => {
             </div>
         </div>
         <ul class="text-sm my-2 list-inside list-square">
-            <li v-for="item in selectedFiles">{{item}}</li>
+            <li v-for="item in selectedFiles">{{ item }}</li>
         </ul>
         <base-drag :is-drag-over="isDragOver" class="flex-grow" />
     </div>
