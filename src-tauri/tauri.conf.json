@@ -1,6 +1,6 @@
 {
     "package": {
-        "productName": "115文件重命名",
+        "productName": "rename-helpr",
         "version": "0.1.0"
     },
     "build": {

@@ -1,10 +1,9 @@
-use std::fs::{self, File};
+#![windows_subsystem = "windows"]
+use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 use tauri::api::dialog::FileDialogBuilder;
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-
-use tauri::{Manager, Window};
+use tauri::{CustomMenuItem, Menu, Submenu};
+use tauri::{Window};
 
 // #![cfg_attr(
 //     all(not(debug_assertions), target_os = "windows"),
@@ -41,23 +40,15 @@ fn rename(files: Vec<&str>, separator: &str, window: Window) {
 }
 
 fn rename_folder(folder: &Path, separator: &str) -> std::io::Result<()> {
-    // fn rename_folder(folder: PathBuf, separator: &str) {
     for entry in fs::read_dir(folder)? {
         let dir = entry?;
-        println!("{:?}", dir.path());
-        println!("{:?}", dir.metadata());
         let md = dir.metadata()?;
-        // println!("{:?}", md);
-        println!("{:?}", md.is_dir());
         if md.is_dir() {
             rename_folder(dir.path().as_path(), separator)?;
         } else {
             rename_files(vec![dir.path().as_path()], separator)?;
         }
     }
-    println!("####");
-    println!("{:?}", folder);
-    println!("{:?}", folder.parent().unwrap());
     let mut ancestors = folder.ancestors();
     ancestors.next();
     let parent_folder = ancestors.next().unwrap();
@@ -68,16 +59,12 @@ fn rename_folder(folder: &Path, separator: &str) -> std::io::Result<()> {
         .collect();
     let new_file_name = chars.join(separator);
     let new_path = parent_folder.join(new_file_name);
-    println!("重命名文件夹:");
-    println!("{:?}", folder);
-    println!("{:?}", new_path);
     fs::rename(folder, new_path)?;
     Ok(())
 }
 
 fn rename_files(files: Vec<&Path>, separator: &str) -> std::io::Result<()> {
     for path in files {
-        // let path = Path::new(file);
         let parent_folder = path.parent().unwrap();
         let file_name = path.file_stem().unwrap();
         let file_ext = path.extension().unwrap();
@@ -165,19 +152,21 @@ fn main() {
         .menu(menu)
         .on_menu_event(|event| match event.menu_item_id() {
             "open-folder" => FileDialogBuilder::new().pick_folder(move |folder_path| {
-                println!("open folder: {:?}", folder_path);
-                let folder = folder_path.unwrap().to_str().unwrap().to_string();
                 let _result = event.window().emit(
                     "files-selected",
                     Payload {
-                        files: vec![&folder],
+                        files: vec![folder_path.unwrap().to_str().unwrap()],
                     },
                 );
             }),
             "open-files" => {
-                // event.window().close().unwrap();
-                FileDialogBuilder::new().pick_files(|file_paths| {
-                    println!("open files: {:?}", file_paths);
+                FileDialogBuilder::new().pick_files(move |file_paths| {
+                    let _result = event.window().emit(
+                        "files-selected",
+                        Payload {
+                            files: file_paths.unwrap().iter().map(|x| x.to_str().unwrap()).collect(),
+                        },
+                    );
                 })
             }
             _ => {}

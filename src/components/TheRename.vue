@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/tauri";
-import { emit, listen } from "@tauri-apps/api/event";
-import { ref } from "vue";
+import { emit, listen, Event } from "@tauri-apps/api/event";
+import { ref, Ref } from "vue";
 import BaseDrag from "../components/BaseDrag.vue";
-
-console.log("loading...");
 
 const separator = ref("❤");
 const isDragOver = ref(false);
-const selectedFiles = ref([]);
+const selectedFiles: Ref<string[]> = ref([]);
 const message = ref("");
 
 const restore = () => {
@@ -19,11 +17,20 @@ const rename = () => {
     invoke("rename", { files: selectedFiles.value, separator: separator.value });
 };
 
-listen("files-selected", (event) => {
-    selectedFiles.value = [event.payload.files];
+interface IPayloadFiles {
+    files: string[],
+}
+
+interface IPayloadMessage {
+    message: string,
+}
+
+listen("files-selected", (event: Event<IPayloadFiles>) => {
+    console.log(event);
+    selectedFiles.value = event.payload.files;
 });
 
-listen("done", (event) => {
+listen("done", (event: Event<IPayloadMessage>) => {
     // selectedFiles.value = [event.payload.files];
     message.value = event.payload.message;
 });
@@ -32,7 +39,7 @@ listen("tauri://file-drop-hover", (event) => {
     isDragOver.value = true;
 });
 
-listen("tauri://file-drop", (event) => {
+listen("tauri://file-drop", (event: Event<string[]>) => {
     console.log(event);
     console.log(event.payload);
     message.value = "";
