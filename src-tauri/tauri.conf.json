@@ -1,6 +1,6 @@
 {
     "package": {
-        "productName": "rename-helpr",
+        "productName": "rename-helper",
         "version": "0.1.0"
     },
     "build": {
@@ -51,7 +51,7 @@
         },
         "windows": [
             {
-                "title": "rename-helpr",
+                "title": "rename-helper",
                 "width": 600,
                 "height": 300,
                 "resizable": true,
