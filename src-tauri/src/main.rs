@@ -1,5 +1,6 @@
 use std::fs::{self, File};
 use std::path::Path;
+use std::path::PathBuf;
 use tauri::api::dialog::FileDialogBuilder;
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 
@@ -26,68 +27,69 @@ fn rename(files: Vec<&str>, separator: &str, window: Window) {
         let path = Path::new(file);
         let md = path.metadata().unwrap();
         if md.is_dir() {
-            rename_folder(file, separator);
+            let _result = rename_folder(path, separator);
         } else {
-            rename_files(vec![file], separator);
+            let _result = rename_files(vec![&path], separator);
         }
     }
-    let _result = window.emit("done", Message { message: "重命名完成！" });
+    let _result = window.emit(
+        "done",
+        Message {
+            message: "重命名完成！",
+        },
+    );
 }
 
-fn rename_folder(folder: &str, separator: &str) {
-    let paths = fs::read_dir(folder).unwrap();
-    for path in paths {
-        let md = path.as_ref().unwrap().metadata().unwrap();
+fn rename_folder(folder: &Path, separator: &str) -> std::io::Result<()> {
+    // fn rename_folder(folder: PathBuf, separator: &str) {
+    for entry in fs::read_dir(folder)? {
+        let dir = entry?;
+        println!("{:?}", dir.path());
+        println!("{:?}", dir.metadata());
+        let md = dir.metadata()?;
+        // println!("{:?}", md);
+        println!("{:?}", md.is_dir());
         if md.is_dir() {
-            rename_folder(path.as_ref().unwrap().path().to_str().unwrap(), separator);
+            rename_folder(dir.path().as_path(), separator)?;
         } else {
-            rename_files(
-                vec![path.as_ref().unwrap().path().to_str().unwrap()],
-                separator,
-            );
+            rename_files(vec![dir.path().as_path()], separator)?;
         }
     }
-    let mut ancestors = Path::new(folder).ancestors();
+    println!("####");
+    println!("{:?}", folder);
+    println!("{:?}", folder.parent().unwrap());
+    let mut ancestors = folder.ancestors();
     ancestors.next();
     let parent_folder = ancestors.next().unwrap();
-    let file_name = Path::new(folder)
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
-    let chars: Vec<String> = file_name.chars().map(|x| x.to_string()).collect();
+    let file_name = folder.file_name().unwrap();
+    let chars: Vec<String> = String::from(file_name.to_str().unwrap())
+        .chars()
+        .map(|x| x.to_string())
+        .collect();
     let new_file_name = chars.join(separator);
     let new_path = parent_folder.join(new_file_name);
-    let result = fs::rename(folder, new_path);
-    let result = match result {
-        Ok(file) => file,
-        Err(error) => {
-            panic!("Problem opening the file: {:?}", error)
-        }
-    };
+    println!("重命名文件夹:");
+    println!("{:?}", folder);
+    println!("{:?}", new_path);
+    fs::rename(folder, new_path)?;
+    Ok(())
 }
 
-fn rename_files(files: Vec<&str>, separator: &str) {
-    for file in files {
-        let path = Path::new(file);
+fn rename_files(files: Vec<&Path>, separator: &str) -> std::io::Result<()> {
+    for path in files {
+        // let path = Path::new(file);
         let parent_folder = path.parent().unwrap();
-        let file_name = path.file_stem().unwrap().to_str().unwrap();
-        let file_ext = path.extension().unwrap().to_str().unwrap();
-        let chars: Vec<String> = String::from(file_name)
+        let file_name = path.file_stem().unwrap();
+        let file_ext = path.extension().unwrap();
+        let chars: Vec<String> = String::from(file_name.to_str().unwrap())
             .chars()
             .map(|x| x.to_string())
             .collect();
-        let new_file_name = chars.join(separator) + "." + file_ext;
+        let new_file_name = chars.join(separator) + "." + file_ext.to_str().unwrap();
         let new_path = parent_folder.join(new_file_name);
-        let result = fs::rename(file, new_path);
-        let result = match result {
-            Ok(file) => file,
-            Err(error) => {
-                panic!("Problem opening the file: {:?}", error)
-            }
-        };
+        fs::rename(path, new_path)?;
     }
+    Ok(())
 }
 
 #[tauri::command]
@@ -96,79 +98,63 @@ fn restore(files: Vec<&str>, separator: &str, window: Window) {
         let path = Path::new(file);
         let md = path.metadata().unwrap();
         if md.is_dir() {
-            restore_folder(file, separator);
+            let _result = restore_folder(path, separator);
         } else {
-            restore_files(vec![file], separator);
+            let _result = restore_files(vec![path], separator);
         }
     }
-    let _result = window.emit("done", Message { message: "还原完成！" });
+    let _result = window.emit(
+        "done",
+        Message {
+            message: "还原完成！",
+        },
+    );
 }
 
-fn restore_folder(folder: &str, separator: &str) {
-    let paths = fs::read_dir(folder).unwrap();
-    for path in paths {
-        let md = path.as_ref().unwrap().metadata().unwrap();
+fn restore_folder(folder: &Path, separator: &str) -> std::io::Result<()> {
+    for entry in fs::read_dir(folder)? {
+        let dir = entry?;
+        let md = dir.metadata()?;
         if md.is_dir() {
-            restore_folder(path.as_ref().unwrap().path().to_str().unwrap(), separator);
+            restore_folder(dir.path().as_path(), separator)?;
         } else {
-            restore_files(
-                vec![path.as_ref().unwrap().path().to_str().unwrap()],
-                separator,
-            );
+            restore_files(vec![dir.path().as_path()], separator)?;
         }
     }
-    let mut ancestors = Path::new(folder).ancestors();
-    ancestors.next();
-    let parent_folder = ancestors.next().unwrap();
-    let file_name = Path::new(folder)
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
-    let chars: Vec<String> = file_name
+    let parent_folder = folder.parent().unwrap();
+    let file_name = folder.file_name().unwrap();
+    let chars: Vec<String> = String::from(file_name.to_str().unwrap())
         .chars()
         .map(|x| x.to_string())
         .filter(|x| x != separator)
         .collect();
     let new_file_name = chars.join("");
     let new_path = parent_folder.join(new_file_name);
-    let result = fs::rename(folder, new_path);
-    let result = match result {
-        Ok(file) => file,
-        Err(error) => {
-            panic!("Problem opening the file: {:?}", error)
-        }
-    };
+    fs::rename(folder, new_path)?;
+    Ok(())
 }
 
-fn restore_files(files: Vec<&str>, separator: &str) {
-    for file in files {
-        let path = Path::new(file);
+fn restore_files(files: Vec<&Path>, separator: &str) -> std::io::Result<()> {
+    for path in files {
         let parent_folder = path.parent().unwrap();
-        let file_name = path.file_stem().unwrap().to_str().unwrap();
-        let file_ext = path.extension().unwrap().to_str().unwrap();
-        let chars: Vec<String> = String::from(file_name)
+        let file_name = path.file_stem().unwrap();
+        let file_ext = path.extension().unwrap();
+        let chars: Vec<String> = String::from(file_name.to_str().unwrap())
             .chars()
             .map(|x| x.to_string())
             .filter(|x| x != separator)
             .collect();
-        let new_file_name = chars.join("") + "." + file_ext;
+        let new_file_name = chars.join("") + "." + file_ext.to_str().unwrap();
         let new_path = parent_folder.join(new_file_name);
-        let result = fs::rename(file, new_path);
-        let result = match result {
-            Ok(file) => file,
-            Err(error) => {
-                panic!("Problem opening the file: {:?}", error)
-            }
-        };
+        fs::rename(path, new_path)?;
     }
+    Ok(())
 }
 
-#[tauri::command]
-fn send_message(window: Window, message: &str) {
-    window.emit("done", Message { message }).unwrap();
-}
+// #[tauri::command]
+// fn send_message(window: Window, message: &str) {
+//     window.emit("done", Message { message }).unwrap();
+// }
 
 fn main() {
     let quit = CustomMenuItem::new("open-folder".to_string(), "打开文件夹");
