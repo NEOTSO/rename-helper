@@ -51,7 +51,7 @@
         },
         "windows": [
             {
-                "title": "115文件重命名",
+                "title": "rename-helpr",
                 "width": 600,
                 "height": 300,
                 "resizable": true,
