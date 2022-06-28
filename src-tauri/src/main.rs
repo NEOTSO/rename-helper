@@ -71,8 +71,9 @@ fn rename_files(files: Vec<&Path>, keywords: &str) -> std::io::Result<()> {
         let chars: Vec<String> = String::from(file_name.to_str().unwrap())
             .chars()
             .map(|x| x.to_string())
-            .collect();
-        let new_file_name = chars.join(keywords) + "." + file_ext.to_str().unwrap();
+            .collect();    
+        // let new_file_name = chars.join(keywords) + "." + file_ext.to_str().unwrap();
+        let new_file_name = chars.join(keywords) + "㊙" + file_ext.to_str().unwrap();
         let new_path = parent_folder.join(new_file_name);
         fs::rename(path, new_path)?;
     }
