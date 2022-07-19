@@ -9,6 +9,7 @@ const keywords: Ref<string> = ref("❤");
 const isDragOver: Ref<boolean> = ref(false);
 const selectedFiles: Ref<string[]> = ref([]);
 const message: Ref<string> = ref("");
+const isExtHidden = ref(false);
 
 const changeMode = (e: Event) => {
     console.log((e.target as HTMLInputElement).value);
@@ -16,16 +17,27 @@ const changeMode = (e: Event) => {
 };
 
 const restore = () => {
-    invoke("restore", { files: selectedFiles.value, keywords: keywords.value });
+    invoke("restore", {
+        files: selectedFiles.value,
+        keywords: keywords.value,
+        isExtHidden: isExtHidden.value,
+    });
 };
 
 const rename = () => {
-    invoke("rename", { files: selectedFiles.value, keywords: keywords.value });
+    invoke("rename", {
+        files: selectedFiles.value,
+        keywords: keywords.value,
+        isExtHidden: isExtHidden.value,
+    });
 };
 
 const deleteStr = () => {
-    invoke("delete_str", { files: selectedFiles.value, keywords: keywords.value });
-}
+    invoke("delete_str", {
+        files: selectedFiles.value,
+        keywords: keywords.value,
+    });
+};
 
 interface IPayloadFiles {
     files: string[];
@@ -57,14 +69,25 @@ listen("tauri://file-drop", (event: TauriEvent<string[]>) => {
 <template>
     <div class="px-4 py-5 flex flex-col h-full">
         <div class="flex justify-between">
-            <div class="flex">
-                <select class="outline-none" @change="changeMode">
-                    <option value="字符分隔">字符分隔</option>
-                    <option value="删除文字">删除文字</option>
-                </select>
-            </div>
-            <div class="flex">
-                <input class="border border-gray-300 outline-none px-2" type="text" placeholder="请输入混淆文字" v-model="keywords" />
+            <div class="flex items-center">
+                <div class="flex">
+                    <select class="outline-none" @change="changeMode">
+                        <option value="字符分隔">字符分隔</option>
+                        <option value="删除文字">删除文字</option>
+                    </select>
+                </div>
+                <div class="flex ml-2">
+                    <input
+                        class="border border-gray-300 outline-none px-2"
+                        type="text"
+                        placeholder="请输入混淆文字"
+                        v-model="keywords"
+                    />
+                </div>
+                <label class="flex items-center ml-3">
+                    <input type="checkbox" name="ext" v-model="isExtHidden" />
+                    <span class="ml-1" for="ext">隐藏后缀</span>
+                </label>
             </div>
             <div v-if="mode === '字符分隔'" class="flex">
                 <div class="button" @click="restore">还原</div>

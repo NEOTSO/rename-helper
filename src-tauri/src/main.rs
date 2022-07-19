@@ -21,14 +21,14 @@ struct Message<'a> {
 }
 
 #[tauri::command]
-fn rename(files: Vec<&str>, keywords: &str, window: Window) {
+fn rename(files: Vec<&str>, keywords: &str, is_ext_hidden: bool, window: Window) {
     for file in files {
         let path = Path::new(file);
         let md = path.metadata().unwrap();
         if md.is_dir() {
-            let _result = rename_folder(path, keywords);
+            let _result = rename_folder(path, keywords, is_ext_hidden);
         } else {
-            let _result = rename_files(vec![&path], keywords);
+            let _result = rename_files(vec![&path], keywords, is_ext_hidden);
         }
     }
     let _result = window.emit(
@@ -39,14 +39,14 @@ fn rename(files: Vec<&str>, keywords: &str, window: Window) {
     );
 }
 
-fn rename_folder(folder: &Path, keywords: &str) -> std::io::Result<()> {
+fn rename_folder(folder: &Path, keywords: &str, is_ext_hidden: bool) -> std::io::Result<()> {
     for entry in fs::read_dir(folder)? {
         let dir = entry?;
         let md = dir.metadata()?;
         if md.is_dir() {
-            rename_folder(dir.path().as_path(), keywords)?;
+            rename_folder(dir.path().as_path(), keywords, is_ext_hidden)?;
         } else {
-            rename_files(vec![dir.path().as_path()], keywords)?;
+            rename_files(vec![dir.path().as_path()], keywords, is_ext_hidden)?;
         }
     }
     let mut ancestors = folder.ancestors();
@@ -63,7 +63,7 @@ fn rename_folder(folder: &Path, keywords: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn rename_files(files: Vec<&Path>, keywords: &str) -> std::io::Result<()> {
+fn rename_files(files: Vec<&Path>, keywords: &str, is_ext_hidden: bool) -> std::io::Result<()> {
     for path in files {
         let parent_folder = path.parent().unwrap();
         let file_name = path.file_stem().unwrap();
@@ -71,9 +71,10 @@ fn rename_files(files: Vec<&Path>, keywords: &str) -> std::io::Result<()> {
         let chars: Vec<String> = String::from(file_name.to_str().unwrap())
             .chars()
             .map(|x| x.to_string())
-            .collect();    
+            .collect();
         // let new_file_name = chars.join(keywords) + "." + file_ext.to_str().unwrap();
-        let new_file_name = chars.join(keywords) + "㊙" + file_ext.to_str().unwrap();
+        let ext_dot = if is_ext_hidden { "㊙" } else { "." };
+        let new_file_name = chars.join(keywords) + ext_dot + file_ext.to_str().unwrap();
         let new_path = parent_folder.join(new_file_name);
         fs::rename(path, new_path)?;
     }
@@ -81,14 +82,14 @@ fn rename_files(files: Vec<&Path>, keywords: &str) -> std::io::Result<()> {
 }
 
 #[tauri::command]
-fn restore(files: Vec<&str>, keywords: &str, window: Window) {
+fn restore(files: Vec<&str>, keywords: &str, is_ext_hidden: bool, window: Window) {
     for file in files {
         let path = Path::new(file);
         let md = path.metadata().unwrap();
         if md.is_dir() {
-            let _result = restore_folder(path, keywords);
+            let _result = restore_folder(path, keywords, is_ext_hidden);
         } else {
-            let _result = restore_files(vec![path], keywords);
+            let _result = restore_files(vec![path], keywords, is_ext_hidden);
         }
     }
     let _result = window.emit(
@@ -99,14 +100,14 @@ fn restore(files: Vec<&str>, keywords: &str, window: Window) {
     );
 }
 
-fn restore_folder(folder: &Path, keywords: &str) -> std::io::Result<()> {
+fn restore_folder(folder: &Path, keywords: &str, is_ext_hidden: bool) -> std::io::Result<()> {
     for entry in fs::read_dir(folder)? {
         let dir = entry?;
         let md = dir.metadata()?;
         if md.is_dir() {
-            restore_folder(dir.path().as_path(), keywords)?;
+            restore_folder(dir.path().as_path(), keywords, is_ext_hidden)?;
         } else {
-            restore_files(vec![dir.path().as_path()], keywords)?;
+            restore_files(vec![dir.path().as_path()], keywords, is_ext_hidden)?;
         }
     }
     let parent_folder = folder.parent().unwrap();
@@ -122,17 +123,23 @@ fn restore_folder(folder: &Path, keywords: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn restore_files(files: Vec<&Path>, keywords: &str) -> std::io::Result<()> {
+fn restore_files(files: Vec<&Path>, keywords: &str, is_ext_hidden: bool) -> std::io::Result<()> {
     for path in files {
         let parent_folder = path.parent().unwrap();
         let file_name = path.file_stem().unwrap();
-        let file_ext = path.extension().unwrap();
+        let file_ext = if is_ext_hidden { String::from("") } else { String::from("") + path.extension().unwrap().to_str().unwrap() };
         let chars: Vec<String> = String::from(file_name.to_str().unwrap())
             .chars()
             .map(|x| x.to_string())
-            .filter(|x| x != keywords)
+            .filter(|x| {
+                if is_ext_hidden {
+                    x != keywords && x != "㊙️"
+                } else {
+                    x != keywords
+                }
+            })
             .collect();
-        let new_file_name = chars.join("") + "." + file_ext.to_str().unwrap();
+        let new_file_name = chars.join("") + &file_ext;
         let new_path = parent_folder.join(new_file_name);
         fs::rename(path, new_path)?;
     }
