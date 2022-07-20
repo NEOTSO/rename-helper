@@ -128,17 +128,19 @@ fn restore_files(files: Vec<&Path>, keywords: &str, is_ext_hidden: bool) -> std:
         let parent_folder = path.parent().unwrap();
         let file_name = path.file_stem().unwrap();
         let file_ext = if is_ext_hidden { String::from("") } else { String::from("") + path.extension().unwrap().to_str().unwrap() };
+        let ext_operator = "㊙";
         let chars: Vec<String> = String::from(file_name.to_str().unwrap())
             .chars()
-            .map(|x| x.to_string())
-            .filter(|x| {
-                if is_ext_hidden {
-                    x != keywords && x != "㊙️"
+            .map(|x| {
+                if x.to_string().eq(ext_operator) {
+                    String::from(".")
                 } else {
-                    x != keywords
+                    x.to_string()
                 }
             })
+            .filter(|x| !x.eq(keywords))
             .collect();
+        println!("{:?}", chars);
         let new_file_name = chars.join("") + &file_ext;
         let new_path = parent_folder.join(new_file_name);
         fs::rename(path, new_path)?;
